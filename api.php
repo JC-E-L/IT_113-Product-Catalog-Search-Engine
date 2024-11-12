@@ -105,8 +105,8 @@ function viewProductDetails($conn, $productId)
     try {
         // Fetch the product details including category and associated photos (if any)
         $sql = "SELECT p.product_id, p.product_name, p.description, p.price, p.size, p.color, 
-                       p.material, p.date_added, pc.category_name, 
-                       GROUP_CONCAT(p.image_url) AS photos
+                    p.material, p.date_added, pc.category_name, 
+                    GROUP_CONCAT(p.image_url) AS photos
                 FROM products p
                 LEFT JOIN product_category pc ON p.category_id = pc.category_id
                 WHERE p.product_id = :product_id
@@ -186,7 +186,7 @@ function searchProducts($conn)
                 FROM products p
                 LEFT JOIN product_category pc ON p.category_id = pc.category_id
                 WHERE p.product_name LIKE :search 
-                   OR pc.category_name LIKE :search";
+                OR pc.category_name LIKE :search";
 
         $stmt = $conn->prepare($sql);
 
