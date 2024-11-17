@@ -1,163 +1,8 @@
 <?php
-// Database connection
-$host = 'localhost'; // Database host
-$db = 'clothing'; // Database name
-$user = 'mutillidae'; // Database user
-$pass = 'jcladia123456'; // Database password
-
-try {
-    $conn = new PDO("mysql:host=$host;dbname=$db", $user, $pass);
-    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e) {
-    echo json_encode(['error' => 'Database connection failed: ' . $e->getMessage()]);
-    exit;
-}
+require __DIR__ . '/../connect.php';  
+require __DIR__ . '/../routes.php';
 
 header("Content-Type: application/json");
-
-// Get the query parameter from the URL (instead of relying on URI parsing)
-$path = isset($_GET['path']) ? $_GET['path'] : '';
-
-// Routing Logic
-switch ($path) {
-    case 'products':
-
-        if (isset($_GET['id']) && !empty($_GET['id'])) {
-            viewProductDetails($conn, $_GET['id']);
-        } else if (isset($_GET['category_id']) && !empty($_GET['category_id'])) {
-            filterProductsByCategory($conn, $_GET['category_id']);
-        } else {
-            fetchAllProducts($conn);
-        }
-        break;
-
-    case 'search':
-        if (isset($_GET['min_price']) || isset($_GET['max_price'])) {
-            searchProductsByPrice($conn);
-        } else if (isset($_GET['category']) || isset($_GET['min_price']) || isset($_GET['max_price']) || isset($_GET['sort'])) {
-            advancedSearchProducts($conn);
-        } else {
-            searchProducts($conn);
-        }
-        break;
-
-    default:
-        http_response_code(404);
-        echo json_encode(["message" => "Route not found"]);
-        break;
-}
-
-// Function to fetch all products (Product Catalog)
-$requestCounts = [];
-
-//API for fetching all products
-function fetchAllProducts($conn)
-{
-    global $requestCounts;
-
-    // Get the client IP address
-    $clientIP = $_SERVER['REMOTE_ADDR'];
-
-    // Initialize request count for the IP address if it doesn't exist
-    if (!isset($requestCounts[$clientIP])) {
-        $requestCounts[$clientIP] = ['count' => 0, 'time' => time()];
-    }
-
-    // Check if the request limit is exceeded (e.g., 100 requests per minute)
-    if ($requestCounts[$clientIP]['count'] >= 100 && (time() - $requestCounts[$clientIP]['time']) < 60) {
-        echo json_encode(['error' => 'Rate limit exceeded. Please try again later.']);
-        return;
-    }
-
-    // Increment the request count
-    $requestCounts[$clientIP]['count']++;
-
-    try {
-        // Use JOIN to also fetch category names from product_category
-        $sql = "SELECT p.*, pc.category_name 
-                FROM products p
-                LEFT JOIN product_category pc ON p.category_id = pc.category_id";
-
-        $stmt = $conn->prepare($sql);
-        $stmt->execute();
-        $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        // Check if any products were found
-        if ($products) {
-            echo json_encode($products);
-        } else {
-            echo json_encode(["message" => "No products found."]);
-        }
-    } catch (Exception $e) {
-        echo json_encode(['error' => 'Failed to fetch products: ' . $e->getMessage()]);
-    }
-}
-
-//API for Viewing product details via product ID
-function viewProductDetails($conn, $productId)
-{
-    // Validate the product ID to ensure it is a valid integer
-    if (!filter_var($productId, FILTER_VALIDATE_INT)) {
-        echo json_encode(['error' => 'Invalid product ID.']);
-        return;
-    }
-
-    try {
-        // Fetch the product details including category and associated photos (if any)
-        $sql = "SELECT p.product_id, p.product_name, p.description, p.price, p.size, p.color, 
-                    p.material, p.date_added, pc.category_name, 
-                    GROUP_CONCAT(p.image_url) AS photos
-                FROM products p
-                LEFT JOIN product_category pc ON p.category_id = pc.category_id
-                WHERE p.product_id = :product_id
-                GROUP BY p.product_id";
-
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':product_id', $productId, PDO::PARAM_INT);
-        $stmt->execute();
-        $product = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($product) {
-            // Convert the 'photos' column to an array if it's not null
-            $product['photos'] = $product['photos'] ? explode(',', $product['photos']) : [];
-            echo json_encode($product);
-        } else {
-            echo json_encode(["message" => "Product not found."]);
-        }
-    } catch (Exception $e) {
-        echo json_encode(['error' => 'Failed to fetch product details: ' . $e->getMessage()]);
-    }
-}
-
-//API for filtering the products vy category using category ID
-function filterProductsByCategory($conn, $categoryId)
-{
-    if (!filter_var($categoryId, FILTER_VALIDATE_INT)) {
-        echo json_encode(['error' => 'Invalid category ID.']);
-        return;
-    }
-    try {
-        // Fetch the products that belong to the specified category
-        $sql = "SELECT p.*, pc.category_id
-                FROM products p
-                LEFT JOIN product_category pc ON p.category_id = pc.category_id
-                WHERE p.category_id = :category_id";
-
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':category_id', $categoryId, PDO::PARAM_STR);
-        $stmt->execute();
-        $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        if ($products) {
-            echo json_encode($products);
-        } else {
-            echo json_encode(["message" => "No products found in this category."]);
-        }
-    } catch (Exception $e) {
-        echo json_encode(['error' => 'Failed to fetch products: ' . $e->getMessage()]);
-    }
-}
-
 // Function to search for products by name or tags
 function searchProducts($conn)
 {
@@ -318,7 +163,7 @@ function advancedSearchProducts($conn)
 
     // Define allowed sorting options
     $validSortOptions = ['product_name', 'price', 'date_added'];
-    
+
     // Verify that the sort option is valid (map it to the actual database column)
     if (!in_array($sortBy, $validSortOptions)) {
         echo json_encode(["error" => "Invalid sort option."]);
@@ -389,5 +234,3 @@ function advancedSearchProducts($conn)
         echo json_encode(['error' => 'Search failed: ' . $e->getMessage()]);
     }
 }
-
-
