@@ -1,7 +1,6 @@
 <?php
 require __DIR__ . '/../connect.php';
 require __DIR__ . '/../routes.php';
-// Database connection
 
 header("Content-Type: application/json");
 
