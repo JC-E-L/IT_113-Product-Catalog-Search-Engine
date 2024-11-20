@@ -1,6 +1,5 @@
 <?php
 require __DIR__ . '/../connect.php';  
-require __DIR__ . '/../routes.php';
 
 header("Content-Type: application/json");
 // Function to search for products by name or tags

@@ -1,7 +1,7 @@
 <?php
 // Database connection
 $host = 'localhost'; // Database host
-$db = 'clothing'; // Database name
+$db = 'clothing2'; // Database name
 $user = 'mutillidae'; // Database user
 $pass = 'jcladia123456'; // Database password
 
