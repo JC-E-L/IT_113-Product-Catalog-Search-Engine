@@ -1,0 +1,11 @@
+{
+    "name": "dell/htdocs",
+    "autoload": {
+        "psr-4": {
+            "Dell\\Htdocs\\": "src/"
+        }
+    },
+    "require": {
+        "firebase/php-jwt": "^6.10"
+    }
+}
