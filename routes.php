@@ -21,9 +21,9 @@ switch ($path) {
         break;
 
     case 'search':
-        if (isset($_GET['min_price']) || isset($_GET['max_price'])) {
+        if (isset($_GET['price'])) {
             searchProductsByPrice($conn);
-        } else if (isset($_GET['category']) || isset($_GET['min_price']) || isset($_GET['max_price']) || isset($_GET['sort'])) {
+        } else if (isset($_GET['name']) || isset($_GET['category']) || isset($_GET['minPrice']) || isset($_GET['maxPrice']) || isset($_GET['sort']) || isset($_GET['color']) || isset($_GET['material'])) {
             advancedSearchProducts($conn);
         } else {
             searchProducts($conn);

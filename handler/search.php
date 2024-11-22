@@ -5,7 +5,7 @@ header("Content-Type: application/json");
 // Function to search for products by name or tags
 function searchProducts($conn)
 {
-    $search = isset($_GET['q']) ? trim($_GET['q']) : ''; // Trim input to remove extra spaces
+    $search = isset($_GET['name']) ? trim($_GET['name']) : ''; // Trim input to remove extra spaces
     if (empty($search)) {
         echo json_encode(["message" => "Please provide a search query"]);
         return;
@@ -56,7 +56,7 @@ function searchProducts($conn)
 function searchProductsByPrice($conn)
 {
     // Get the search term from the 'query' parameter in the URL
-    $search = isset($_GET['query']) ? trim($_GET['query']) : '';
+    $search = isset($_GET['name']) ? trim($_GET['name']) : '';
     if (empty($search)) {
         echo json_encode(["message" => "Please provide a search query."]);
         return;
@@ -75,15 +75,11 @@ function searchProductsByPrice($conn)
     }
 
     // Get and validate price range parameters
-    $minPrice = isset($_GET['min_price']) ? $_GET['min_price'] : null;
-    $maxPrice = isset($_GET['max_price']) ? $_GET['max_price'] : null;
+    $price = isset($_GET['price']) ? $_GET['price'] : null;
 
-    if ($minPrice !== null && !is_numeric($minPrice)) {
+
+    if ($price !== null && !is_numeric($price)) {
         echo json_encode(["error" => "Invalid minimum price."]);
-        return;
-    }
-    if ($maxPrice !== null && !is_numeric($maxPrice)) {
-        echo json_encode(["error" => "Invalid maximum price."]);
         return;
     }
 
@@ -95,13 +91,9 @@ function searchProductsByPrice($conn)
                 WHERE (p.product_name LIKE :search OR p.description LIKE :search)";
 
         // Add price filtering if specified
-        if ($minPrice !== null) {
-            $sql .= " AND p.price >= :min_price";
+        if ($price !== null) {
+            $sql .= " AND p.price <= :price || p.price >= :price";
         }
-        if ($maxPrice !== null) {
-            $sql .= " AND p.price <= :max_price";
-        }
-
         $stmt = $conn->prepare($sql);
 
         // Bind the search parameter with wildcard for LIKE
@@ -109,13 +101,9 @@ function searchProductsByPrice($conn)
         $stmt->bindParam(':search', $searchQuery, PDO::PARAM_STR);
 
         // Bind price parameters if they are provided and are numeric
-        if ($minPrice !== null) {
-            $stmt->bindValue(':min_price', (float)$minPrice, PDO::PARAM_STR);
+        if ($price !== null) {
+            $stmt->bindValue(':price', (float)$price, PDO::PARAM_STR);
         }
-        if ($maxPrice !== null) {
-            $stmt->bindValue(':max_price', (float)$maxPrice, PDO::PARAM_STR);
-        }
-
         $stmt->execute();
         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -133,97 +121,227 @@ function searchProductsByPrice($conn)
 
 
 //API for searching the product details which include, name of the product, category ID, price range and sorting
+
+// function advancedSearchProducts($conn)
+// {
+//     // Get and sanitize query parameters
+//     $search = isset($_GET['name']) ? trim($_GET['name']) : '';
+//     $categoryName = isset($_GET['category']) ? trim($_GET['category']) : null;
+//     $minPrice = isset($_GET['min_price']) ? trim($_GET['min_price']) : null;
+//     $maxPrice = isset($_GET['max_price']) ? trim($_GET['max_price']) : null;
+//     $sortBy = isset($_GET['sort']) ? trim($_GET['sort']) : 'product_name';
+
+//     // Validate input
+//     if (empty($search) && empty($categoryName) && $minPrice === null && $maxPrice === null) {
+//         echo json_encode(["message" => "Please provide at least one search query."]);
+//         return;
+//     }
+//     if (!empty($search) && strlen($search) < 3) {
+//         echo json_encode(["error" => "Search term must be at least 3 characters long."]);
+//         return;
+//     }
+//     if (!empty($search) && !preg_match('/^[a-zA-Z0-9\s]+$/', $search)) {
+//         echo json_encode(["error" => "Invalid characters in search term."]);
+//         return;
+//     }
+
+//     // Define valid sort options
+//     $validSortOptions = [
+//         'product_name', 'price', 'date_added',
+//         'product_name_desc', 'price_desc', 'date_added_desc'
+//     ];
+
+//     // Validate and map sort options
+//     if (!in_array($sortBy, $validSortOptions)) {
+//         echo json_encode(["error" => "Invalid sort option."]);
+//         return;
+//     }
+//     $sortColumn = str_replace('_desc', '', $sortBy);
+//     $sortDirection = strpos($sortBy, '_desc') !== false ? 'DESC' : 'ASC';
+
+//     // Validate price range inputs
+//     if (($minPrice !== null && !is_numeric($minPrice)) || ($maxPrice !== null && !is_numeric($maxPrice))) {
+//         echo json_encode(["error" => "Invalid price value."]);
+//         return;
+//     }
+
+//     // Start building the query
+//     $sql = "SELECT p.*, pc.category_name 
+//             FROM products p
+//             LEFT JOIN product_category pc ON p.category_id = pc.category_id
+//             WHERE 1=1"; // Base condition for appending filters
+
+//     // Add filters for product_name
+//     if (!empty($search)) {
+//         $sql .= " AND p.product_name LIKE :search";
+//     }
+
+//     // Add filters for price range
+//     if ($minPrice !== null) {
+//         $sql .= " AND p.price >= :min_price";
+//     }
+//     if ($maxPrice !== null) {
+//         $sql .= " AND p.price <= :max_price";
+//     }
+
+//     // Add filters for category_name (case-insensitive partial match)
+//     if (!empty($categoryName)) {
+//         $sql .= " AND LOWER(pc.category_name) LIKE LOWER(:category_name)";
+//     }
+
+//     // Add sorting
+//     $sql .= " ORDER BY $sortColumn $sortDirection";
+
+//     try {
+//         // Prepare the query
+//         $stmt = $conn->prepare($sql);
+
+//         // Bind parameters
+//         if (!empty($search)) {
+//             $searchQuery = '%' . $search . '%'; // Match any part of the product name
+//             $stmt->bindParam(':search', $searchQuery, PDO::PARAM_STR);
+//         }
+//         if ($minPrice !== null) {
+//             $stmt->bindParam(':min_price', $minPrice, PDO::PARAM_INT);
+//         }
+//         if ($maxPrice !== null) {
+//             $stmt->bindParam(':max_price', $maxPrice, PDO::PARAM_INT);
+//         }
+//         if (!empty($categoryName)) {
+//             $categoryQuery = '%' . $categoryName . '%'; // Match any part of the category name
+//             $stmt->bindParam(':category_name', $categoryQuery, PDO::PARAM_STR);
+//         }
+
+//         // Execute and fetch results
+//         $stmt->execute();
+//         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+//         // Check if products were found
+//         if ($products) {
+//             echo json_encode($products);
+//         } else {
+//             echo json_encode(["message" => "No products found."]);
+//         }
+//     } catch (Exception $e) {
+//         echo json_encode(['error' => 'Search failed: ' . $e->getMessage()]);
+//     }
+// }
+
 function advancedSearchProducts($conn)
 {
-    // Get the search term from the 'query' parameter in the URL
-    $search = isset($_GET['query']) ? trim($_GET['query']) : '';
-    if (empty($search)) {
-        echo json_encode(["message" => "Please provide a search query."]);
+    // Get and sanitize query parameters
+    $search = isset($_GET['name']) ? trim($_GET['name']) : '';
+    $categoryName = isset($_GET['category']) ? trim($_GET['category']) : null;
+    $minPrice = isset($_GET['min_price']) ? trim($_GET['min_price']) : null;
+    $maxPrice = isset($_GET['max_price']) ? trim($_GET['max_price']) : null;
+    $material = isset($_GET['material']) ? trim($_GET['material']) : null;
+    $color = isset($_GET['color']) ? trim($_GET['color']) : null;
+    $sortBy = isset($_GET['sort']) ? trim($_GET['sort']) : 'product_name';
+
+    // Validate input
+    if (empty($search) && empty($categoryName) && $minPrice === null && $maxPrice === null && empty($material) && empty($color)) {
+        echo json_encode(["message" => "Please provide at least one search query."]);
         return;
     }
-
-    // Validate length of the search term
-    if (strlen($search) < 3) {
+    if (!empty($search) && strlen($search) < 3) {
         echo json_encode(["error" => "Search term must be at least 3 characters long."]);
         return;
     }
-
-    // Sanitize the search term to allow only alphanumeric characters and spaces
-    if (!preg_match('/^[a-zA-Z0-9\s]+$/', $search)) {
+    if (!empty($search) && !preg_match('/^[a-zA-Z0-9\s]+$/', $search)) {
         echo json_encode(["error" => "Invalid characters in search term."]);
         return;
     }
 
-    // Get and sanitize additional query parameters
-    $categoryName = isset($_GET['category']) ? trim($_GET['category']) : null;
-    $minPrice = isset($_GET['min_price']) ? $_GET['min_price'] : null;
-    $maxPrice = isset($_GET['max_price']) ? $_GET['max_price'] : null;
-    $sortBy = isset($_GET['sort']) ? trim($_GET['sort']) : 'product_name';
+    // Define valid sort options
+    $validSortOptions = [
+        'product_name', 'price', 'date_added',
+        'product_name_desc', 'price_desc', 'date_added_desc'
+    ];
 
-    // Define allowed sorting options
-    $validSortOptions = ['product_name', 'price', 'date_added'];
-
-    // Verify that the sort option is valid (map it to the actual database column)
+    // Validate and map sort options
     if (!in_array($sortBy, $validSortOptions)) {
         echo json_encode(["error" => "Invalid sort option."]);
         return;
     }
+    $sortColumn = str_replace('_desc', '', $sortBy);
+    $sortDirection = strpos($sortBy, '_desc') !== false ? 'DESC' : 'ASC';
 
-    // Validate and sanitize price inputs
-    if ($minPrice !== null && !is_numeric($minPrice)) {
-        echo json_encode(["error" => "Invalid minimum price."]);
+    // Validate price range inputs
+    if (($minPrice !== null && !is_numeric($minPrice)) || ($maxPrice !== null && !is_numeric($maxPrice))) {
+        echo json_encode(["error" => "Invalid price value."]);
         return;
     }
-    if ($maxPrice !== null && !is_numeric($maxPrice)) {
-        echo json_encode(["error" => "Invalid maximum price."]);
-        return;
+
+    // Start building the query
+    $sql = "SELECT p.*, pc.category_name 
+            FROM products p
+            LEFT JOIN product_category pc ON p.category_id = pc.category_id
+            WHERE 1=1"; // Base condition for appending filters
+
+    // Add filters for product_name
+    if (!empty($search)) {
+        $sql .= " AND p.product_name LIKE :search";
     }
+
+    // Add filters for price range
+    if ($minPrice !== null) {
+        $sql .= " AND p.price >= :min_price";
+    }
+    if ($maxPrice !== null) {
+        $sql .= " AND p.price <= :max_price";
+    }
+
+    // Add filters for category_name (case-insensitive partial match)
+    if (!empty($categoryName)) {
+        $sql .= " AND LOWER(pc.category_name) LIKE LOWER(:category_name)";
+    }
+
+    // Add filters for material (case-insensitive partial match)
+    if (!empty($material)) {
+        $sql .= " AND LOWER(p.material) LIKE LOWER(:material)";
+    }
+
+    // Add filters for color (case-insensitive partial match)
+    if (!empty($color)) {
+        $sql .= " AND LOWER(p.color) LIKE LOWER(:color)";
+    }
+
+    // Add sorting
+    $sql .= " ORDER BY $sortColumn $sortDirection";
 
     try {
-        // Start building the SQL query
-        $sql = "SELECT p.*, pc.category_name 
-                FROM products p
-                LEFT JOIN product_category pc ON p.category_id = pc.category_id
-                WHERE (p.product_name LIKE :search OR p.description LIKE :search)";
-
-        // Add filters based on provided parameters
-        if ($categoryName !== null) {
-            // Bind category name safely to prevent SQL injection
-            $sql .= " AND pc.category_name = :category_name";
-        }
-        if ($minPrice !== null) {
-            $sql .= " AND p.price >= :min_price";
-        }
-        if ($maxPrice !== null) {
-            $sql .= " AND p.price <= :max_price";
-        }
-
-        // Add safe sorting clause (preventing SQL injection in ORDER BY)
-        $sql .= " ORDER BY " . $sortBy;
-
-        // Prepare the SQL query
+        // Prepare the query
         $stmt = $conn->prepare($sql);
 
-        // Bind the search term with wildcard for LIKE
-        $searchQuery = '%' . $search . '%';
-        $stmt->bindParam(':search', $searchQuery, PDO::PARAM_STR);
-
-        // Bind other parameters if provided
-        if ($categoryName !== null) {
-            $stmt->bindParam(':category_name', $categoryName, PDO::PARAM_STR);
+        // Bind parameters
+        if (!empty($search)) {
+            $searchQuery = '%' . $search . '%'; // Match any part of the product name
+            $stmt->bindParam(':search', $searchQuery, PDO::PARAM_STR);
         }
         if ($minPrice !== null) {
-            $stmt->bindValue(':min_price', (float)$minPrice, PDO::PARAM_STR);
+            $stmt->bindParam(':min_price', $minPrice, PDO::PARAM_INT);
         }
         if ($maxPrice !== null) {
-            $stmt->bindValue(':max_price', (float)$maxPrice, PDO::PARAM_STR);
+            $stmt->bindParam(':max_price', $maxPrice, PDO::PARAM_INT);
+        }
+        if (!empty($categoryName)) {
+            $categoryQuery = '%' . $categoryName . '%'; // Match any part of the category name
+            $stmt->bindParam(':category_name', $categoryQuery, PDO::PARAM_STR);
+        }
+        if (!empty($material)) {
+            $materialQuery = '%' . $material . '%'; // Match any part of the material name
+            $stmt->bindParam(':material', $materialQuery, PDO::PARAM_STR);
+        }
+        if (!empty($color)) {
+            $colorQuery = '%' . $color . '%'; // Match any part of the color name
+            $stmt->bindParam(':color', $colorQuery, PDO::PARAM_STR);
         }
 
-        // Execute the query
+        // Execute and fetch results
         $stmt->execute();
         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Check if any products were found
+        // Check if products were found
         if ($products) {
             echo json_encode($products);
         } else {
@@ -233,3 +351,6 @@ function advancedSearchProducts($conn)
         echo json_encode(['error' => 'Search failed: ' . $e->getMessage()]);
     }
 }
+
+
+
