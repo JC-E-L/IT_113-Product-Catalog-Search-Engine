@@ -4,6 +4,7 @@ require_once __DIR__ . '/handler/products.php';
 require_once __DIR__ . '/handler/search.php';
 require_once __DIR__ . '/handler/SellerAdmin.php';
 require_once __DIR__ . '/vendor/autoload.php';
+
 use Firebase\JWT\JWT;
 
 $path = isset($_GET['path']) ? $_GET['path'] : '';
@@ -21,12 +22,8 @@ switch ($path) {
         break;
 
     case 'search':
-        if (isset($_GET['price'])) {
-            searchProductsByPrice($conn);
-        } else if (isset($_GET['name']) || isset($_GET['category']) || isset($_GET['minPrice']) || isset($_GET['maxPrice']) || isset($_GET['sort']) || isset($_GET['color']) || isset($_GET['material'])) {
+        if (isset($_GET['name']) || isset($_GET['category']) || isset($_GET['minPrice']) || isset($_GET['maxPrice']) || isset($_GET['sort']) || isset($_GET['color']) || isset($_GET['size']) || isset($_GET['material'])) {
             advancedSearchProducts($conn);
-        } else {
-            searchProducts($conn);
         }
         break;
 
